@@ -43,6 +43,5 @@ exports.upadateEstadoEnvio = async (id_env) => {
         .eq('id_env', id_env)
     if (error) throw new Error(error.message);
     return data;
-
 };
 

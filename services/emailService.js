@@ -1,51 +1,37 @@
 require('dotenv').config();
 const axios = require('axios');
-const emailRepository = require('../repositories/emailRepository')
+const emailRepository = require('../repositories/emailRepository');
+const { sendToQueue } = require('./rabbitMQConsumer');
 
 async function getDifusionCampana(id_campana) {
     try {
-        const response = await axios.get('http://localhost:3001/getDestDif')
+        const response = await axios.get('http://localhost:3001/getDestDif/' + id_campana);
         return response.data;
     } catch (error) {
-        console.error('Error al obtener los destinatarios difuson:', error);
+        console.error('Error al obtener los destinatarios de difusión:', error);
         throw error;
     }
 }
 
 exports.getEnvioDifusion = async (idCampana) => {
     const resultados = [];
+    const difusion = await getDifusionCampana(idCampana);
 
-    const difusion = getDifusionCampana(idCampana)
-    console.log(difusion)
     for (const dest of difusion) {
         try {
-            const data = await emailRepository.getEnvioDifusion(dest.id_difusion)
-            resultados.push(data)
+            const data = await emailRepository.getEnvioDifusion(dest.id_difusion);
+            resultados.push(data);
         } catch (error) {
-            console.error('Error al obtener envio:', error);
+            console.error('Error al obtener envío:', error);
         }
     }
-    return resultados
+    return resultados;
 };
 
-
+// Encolar correos en RabbitMQ
 exports.enviarCorreos = async ({ from, to, subject, html }) => {
-    const responses = [];
-
     for (const email of to) {
-        try {
-            const response = await emailRepository.enviarCorreo({ from, to: email, subject, html });
-            responses.push(response);
-        } catch (error) {
-            console.error(`Error al enviar a ${email}: ${error.message}`);
-            responses.push({ email, error: error.message });
-        }
+        await sendToQueue('emailQueue', { from, to: email, subject, html });
+        console.log(`Correo encolado para ${email}`);
     }
-
-    return responses;
-};
-
-exports.createEnvio = async (idDif) => {
-    const data = await emailRepository.createEnvio(idDif);
-    return data;
 };
