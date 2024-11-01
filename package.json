@@ -11,6 +11,7 @@
   "description": "",
   "dependencies": {
     "@supabase/supabase-js": "^2.46.0",
+    "amqplib": "^0.10.4",
     "axios": "^1.7.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

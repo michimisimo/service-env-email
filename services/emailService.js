@@ -1,7 +1,7 @@
 require('dotenv').config();
 const axios = require('axios');
 const emailRepository = require('../repositories/emailRepository');
-const { sendToQueue } = require('./rabbitMQConsumer');
+const { sendToQueue } = require('./rabbitMQConsumer'); //Accede a rabbitMQ
 
 async function getDifusionCampana(id_campana) {
     try {
@@ -30,6 +30,7 @@ exports.getEnvioDifusion = async (idCampana) => {
 
 // Encolar correos en RabbitMQ
 exports.enviarCorreos = async ({ from, to, subject, html }) => {
+    console.log("To: "+JSON.stringify(to));
     for (const email of to) {
         await sendToQueue('emailQueue', { from, to: email, subject, html });
         console.log(`Correo encolado para ${email}`);

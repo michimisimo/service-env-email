@@ -12,6 +12,7 @@ exports.getEnvioDifusion = async (req, res) => {
 
 exports.enviarCorreos = async (req, res) => {
     const { idDif, from, to, subject, html } = req.body;
+    console.log ("To controller: "+ JSON.stringify(to));
 
     try {
         const responses = await emailService.enviarCorreos({ idDif, from, to, subject, html });
