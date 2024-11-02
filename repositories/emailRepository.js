@@ -29,7 +29,7 @@ exports.enviarCorreo = async ({ from, to, subject, html }) => {
 
         const requestData = {
             sendto: to,
-            name: "MassiveDifusion",
+            name: "MassiveTeam",
             replyTo: from,
             ishtml: "false",  // Cambia a "true" si el cuerpo es HTML
             title: subject,
