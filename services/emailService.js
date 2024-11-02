@@ -5,7 +5,7 @@ const { sendToQueue } = require('./rabbitMQConsumer'); //Accede a rabbitMQ
 
 async function getDifusionCampana(id_campana) {
     try {
-        const response = await axios.get('http://localhost:3001/getDestDif/' + id_campana);
+        const response = await axios.get('http://service-gest-dif:3001/getDestDif/' + id_campana);
         return response.data;
     } catch (error) {
         console.error('Error al obtener los destinatarios de difusión:', error);
