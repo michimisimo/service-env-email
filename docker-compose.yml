@@ -1,9 +1,14 @@
-version: '3.8'
-
+version: '3'
 services:
-  mailgun-api:
+  api-supabase:
     build: .
     ports:
       - "3002:3002"
     env_file:
       - .env
+    networks:
+      - api-network
+
+networks:
+  api-network:
+    external: true

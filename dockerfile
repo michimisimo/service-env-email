@@ -1,20 +1,20 @@
-# Usar la imagen base de Node.js
+# Usa una imagen base de Node.js
 FROM node:18
 
-# Crear y establecer el directorio de trabajo
+# Establece el directorio de trabajo
 WORKDIR /usr/src/app
 
-# Copiar package.json y package-lock.json
+# Copia los archivos de package.json y package-lock.json
 COPY package*.json ./
 
-# Instalar dependencias
+# Instala las dependencias del proyecto
 RUN npm install
 
-# Copiar el archivo .env
-COPY .env ./
-
-# Copiar el resto del código
+# Copia el resto del código
 COPY . .
 
-# Exponer el puerto en el que la app escucha
+# Expone el puerto que va a usar la API
 EXPOSE 3002
+
+# Configura el comando para iniciar la API
+CMD ["node", "server.js"]

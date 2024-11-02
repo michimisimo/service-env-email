@@ -29,8 +29,9 @@ exports.getEnvioDifusion = async (idCampana) => {
 };
 
 // Encolar correos en RabbitMQ
-exports.enviarCorreos = async ({ from, to, subject, html }) => {
-    console.log("To: "+JSON.stringify(to));
+exports.enviarCorreos = async ({ idDif, from, to, subject, html }) => {
+    const idDifusion = idDif
+    console.log("To: " + JSON.stringify(to));
     for (const email of to) {
         await sendToQueue('emailQueue', { from, to: email, subject, html });
         console.log(`Correo encolado para ${email}`);

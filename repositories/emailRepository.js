@@ -10,7 +10,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const rapidApiKey =  process.env.RAPIDAPI_KEY;
+const rapidApiKey = process.env.RAPIDAPI_KEY;
 const rapidApiUrl = process.env.RAPIDAPI_URL;
 
 exports.getEnvioDifusion = async (idDif) => {
@@ -23,18 +23,18 @@ exports.getEnvioDifusion = async (idDif) => {
     return data;
 };
 
-exports.enviarCorreo = async ({ fromEmail, to, subject, html }) => {
-   
+exports.enviarCorreo = async ({ from, to, subject, html }) => {
+
     try {
 
         const requestData = {
             sendto: to,
-            name: "user2024",
-            replyTo: fromEmail, 
+            name: "MassiveDifusion",
+            replyTo: from,
             ishtml: "false",  // Cambia a "true" si el cuerpo es HTML
             title: subject,
             body: html
-        };       
+        };
 
         console.log("Request data: " + JSON.stringify(requestData));
 
