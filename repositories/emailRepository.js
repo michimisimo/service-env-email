@@ -1,9 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
-const { Resend } = require('resend');
 
-const resendKey = process.env.RESEND_API_KEY;
-const resend = new Resend(resendKey);
 const axios = require('axios');
 
 const supabaseUrl = process.env.SUPABASE_URL;

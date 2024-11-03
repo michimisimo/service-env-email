@@ -37,3 +37,9 @@ exports.enviarCorreos = async ({ idDif, from, to, subject, html }) => {
         console.log(`Correo encolado para ${email}`);
     }
 };
+
+//crea un envio para la difusion
+exports.createEnvio = async (idDif) => {
+    const data = emailRepository.createEnvio(idDif);
+    return data;
+}
