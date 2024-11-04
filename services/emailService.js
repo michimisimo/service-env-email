@@ -69,7 +69,7 @@ exports.startScheduler = () => {
             const now = new Date();
 
             for (const campana of campanas.data) {
-                //Filtrar las campañas pendientes de envío
+                //Filtrar las campañas pendientes de envío (estado 'sin empezar')
                 if (campana.id_estado === 3){
                     console.log("Se encontró una campaña pendiente")
                     const { id_campana, fecha_programada, hora_programada } = campana;
@@ -84,6 +84,13 @@ exports.startScheduler = () => {
                     if (nowInChile.isSame(fechaYHoraProgramada, 'minute'))
                         {
                         console.log(`Iniciando envío para campaña ID: ${id_campana}`);
+
+                        //Cambiar estado de campaña a 'en proceso'
+                        console.log("Se modifica el estado de la campaña")
+                        await axios.patch('http://service-gest-cam:3001/updateEstadoCampana/' + id_campana, {
+                            id_estado: 2
+                        });
+                        console.log("Campaña en proceso")
 
                         //Obtener lista difusion
                         const listDif = await getDifusionCampana(id_campana);
@@ -132,8 +139,12 @@ exports.startScheduler = () => {
                             }
                         }
                         if(campanaEnviada) {
+                            //Cambiar estado de campaña a 'terminada'
                             console.log("Se modifica el estado de la campaña")
-                            await axios.patch('http://service-gest-cam:3001/updateEstadoCampana/' + id_campana);
+                            await axios.patch('http://service-gest-cam:3001/updateEstadoCampana/' + id_campana, {
+                                id_estado: 1
+                            });
+                            console.log("Campaña terminada")
                         }
                         
                     } else{
