@@ -58,11 +58,12 @@ exports.createEnvio = async (idDif) => {
     return data;
 };
 
-exports.updateEstadoEnvio = async (id_env) => {
+exports.updateEstadoEnvio = async (id_env, estado) => {
     const { data, error } = await supabase
         .from('envio')
-        .update({ 'id_estado': 2, 'fecha_envio': new Date() })
-        .eq('id_env', id_env)
+        .update({ id_estado: estado, fecha_envio: new Date() })
+        .eq('id_envio', id_env);
+
     if (error) throw new Error(error.message);
     return data;
 };

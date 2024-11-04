@@ -32,3 +32,13 @@ exports.createEnvio = async (req, res) => {
         res.status(500).json({ error: error.message })
     }
 }
+
+exports.updateEstadoEnvio = async (req, res) => {
+    const id = req.params.id;
+    try {
+        await emailService.updateEstadoEnvio(id);
+        res.status(200).json({ message: 'informacion del envio actualizada exitosamente.' })
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+};

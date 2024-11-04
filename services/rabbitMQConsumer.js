@@ -44,12 +44,22 @@ async function consumeQueue(queue) {
         console.error("RabbitMQ channel not initialized");
         return;
     }
-    await channel.assertQueue(queue, { durable: true }); // Asegura que la cola existe
+    await channel.assertQueue(queue, { durable: true });
     channel.consume(queue, async (msg) => {
         if (msg !== null) {
             const message = JSON.parse(msg.content.toString());
-            await processEmail(message);
-            channel.ack(msg); // Acknowledge the message
+            try {
+                const response = await processEmail(message); // Asegúrate de que se pasa el objeto completo
+                if (response.success) {
+                    await emailRepository.updateEstadoEnvio(message.idEnv, 2); // Cambia a 'enviado' usando idEnv                    
+                } else {
+                    await emailRepository.updateEstadoEnvio(message.idEnv, 3); // Cambia a 'fallido'
+                }
+            } catch (error) {
+                console.error(`Error al procesar el mensaje: ${error.message}`);
+                await emailRepository.updateEstadoEnvio(message.idEnv, 3); // Cambia a 'error'
+            }
+            channel.ack(msg);
         }
     });
 }
@@ -57,14 +67,18 @@ async function consumeQueue(queue) {
 //Esta función maneja el envío real del correo electrónico.
 //Uso de Parámetros: Los parámetros from, to, subject, y html provienen del mensaje que fue encolado anteriormente. 
 //Aquí es donde se utiliza la información que fue enviada a la cola.
-async function processEmail({ from, to, subject, html }) {
+async function processEmail({ from, to, subject, html, idEnv }) {
     try {
         const response = await emailRepository.enviarCorreo({ from, to, subject, html });
         console.log(`Correo enviado a ${to}`, response);
+        // Devuelve el estado del envío
+        return { success: true, idEnv, response };
     } catch (error) {
         console.error(`Error al enviar correo a ${to}:`, error.message);
+        return { success: false, idEnv, error: error.message };
     }
 }
+
 
 //Esto permite que las funciones initRabbitMQConsumer y sendToQueue sean accesibles desde otros archivos de tu aplicación. 
 //Es una forma de encapsular la lógica de RabbitMQ en un módulo que puede ser importado y utilizado en otras partes del código.

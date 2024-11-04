@@ -3,8 +3,9 @@ const emailController = require('../controllers/emailController');
 
 const router = express.Router();
 
-router.get('/getEnvDif', emailController.getEnvioDifusion);
+router.get('/getEnvDif/:idCampana', emailController.getEnvioDifusion);
 router.post('/envMails', emailController.enviarCorreos);
 router.post('/createEnv/:idDif', emailController.createEnvio);
+router.patch('/updateEstEnv/:id', emailController.updateEstadoEnvio);
 
 module.exports = router;
