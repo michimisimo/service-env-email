@@ -58,6 +58,11 @@ exports.createEnvio = async (idDif) => {
     return data;
 }
 
+exports.deleteEnvio = async (idDifusion) => {
+    const data = await emailRepository.deleteEnvio(idDifusion);
+    return data;
+};
+
 // Función para iniciar el scheduler
 exports.startScheduler = () => {
     setInterval(async () => {

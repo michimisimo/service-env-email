@@ -68,3 +68,13 @@ exports.updateEstadoEnvio = async (id_env, estado) => {
     return data;
 };
 
+exports.deleteEnvio = async (idDifusion) => {
+    const { data, error } = await supabase
+        .from('envio')
+        .delete()
+        .eq("id_difusion", idDifusion);
+
+    if (error) throw new Error(error.message);
+    return data;
+};
+

@@ -42,3 +42,13 @@ exports.updateEstadoEnvio = async (req, res) => {
         res.status(500).json({ error: error.message })
     }
 };
+
+exports.deleteEnvio = async (req, res) => {
+    const { idDif } = req.params;
+    try {
+        const data = await emailService.deleteEnvio(idDif);
+        res.status(200).json(data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}

@@ -7,5 +7,6 @@ router.get('/getEnvDif/:idCampana', emailController.getEnvioDifusion);
 router.post('/envMails', emailController.enviarCorreos);
 router.post('/createEnv/:idDif', emailController.createEnvio);
 router.patch('/updateEstEnv/:id', emailController.updateEstadoEnvio);
+router.put('/delEnv/:idDif', emailController.deleteEnvio);
 
 module.exports = router;
