@@ -90,34 +90,29 @@ exports.startScheduler = () => {
 
                         //Obtener lista envios
                         const listEnv = await this.getEnvioDifusion(id_campana);
-                        console.log("Lista envio: ",listEnv);
 
                         //Obtener lista correos de destinatarios
-                        const destinatariosCampana = await getDestinatariosCampana(id_campana);  //Devuelve un arreglo de tipo destinatario[] de la campaña   
-                        console.log("Destinatarios campaña: ",destinatariosCampana)                    
+                        const destinatariosCampana = await getDestinatariosCampana(id_campana);  //Devuelve un arreglo de tipo destinatario[] de la campaña                   
                                                 
                         //Obtener remitente, asunto y contenido de correo
                         const emailData = await axios.get(`http://service-gest-cam:3001/getEmailCampana/${id_campana}`);                         
                         const correoRemitente = emailData.data[0].correo_remitente;
                         const asunto = emailData.data[0].asunto;
                         const contenido = emailData.data[0].contenido;
-                        console.log("correo remitente: ",correoRemitente, ", asunto: ", asunto, ", contenido: ",contenido) 
 
+                        let campanaEnviada = false;
 
                         for (const destinatario of destinatariosCampana){
 
                             //Obtener difusion
                             const difusion = listDif.find(difusion => difusion.rut === destinatario.rut);
-                            console.log("Difusion: ", difusion)
 
                             //Obtener envio
                             const envio = listEnv.find(envio => envio[0].id_difusion === difusion.id_difusion); 
-                            const idEnvio = envio[0].id_envio;  
-                            console.log("Envío: ", envio, ", ID envio: ",idEnvio)                               
+                            const idEnvio = envio[0].id_envio;                             
 
                             //Obtener email destinatario
-                            const emailDest = destinatario.email;       
-                            console.log("Email: ", emailDest)    
+                            const emailDest = destinatario.email;
 
                             // Llama a enviarCorreos para encolar el envío de correos
                             console.log("Enviando correo")
@@ -128,9 +123,18 @@ exports.startScheduler = () => {
                                 html: contenido,
                                 idEnv: idEnvio
                             });
-                            /* if estado correos != 4 !=3 then   */
-                            /* await axios.patch('http://service-gest-cam:3001/updateEstadoCampana/' + id_campana); //Cambia a 'terminada' usando id_campana */
-                        } 
+                            //Obtener lista envios actualizada
+                            const listEnvActual = await this.getEnvioDifusion(id_campana);
+                            const envioActual = listEnvActual.find(envio => envio[0].id_difusion === difusion.id_difusion); 
+
+                            if(envioActual[0].id_estado != 1){
+                                campanaEnviada = true;
+                            }
+                        }
+                        if(campanaEnviada) {
+                            console.log("Se modifica el estado de la campaña")
+                            await axios.patch('http://service-gest-cam:3001/updateEstadoCampana/' + id_campana);
+                        }
                         
                     } else{
                         console.log("Esta campaña no está programada para este minuto")
