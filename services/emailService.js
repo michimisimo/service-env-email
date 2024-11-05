@@ -74,6 +74,16 @@ exports.saveReporte = async (reporte) => {
     }
 };
 
+exports.getReporteEnvio = async (idCampana) => {
+    try {
+        const data = await emailRepository.getReporteEnvio(idCampana);
+        return data;
+    } catch (error) {
+        console.error("Error al obtener el reporte de envío:", error);
+        throw new Error(error.message);
+    }
+};
+
 exports.startScheduler = () => {
     setInterval(async () => {
         try {

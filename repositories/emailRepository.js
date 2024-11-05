@@ -87,3 +87,14 @@ exports.deleteEnvio = async (idDifusion) => {
     return data;
 };
 
+exports.getReporteEnvio = async (idCampana) => {
+    const { data, error } = await supabase
+        .from('reporte') 
+        .select('*') 
+        .eq('id_campana', idCampana);
+
+    if (error) throw new Error(error.message);
+
+    return data; 
+};
+
