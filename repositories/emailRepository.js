@@ -58,6 +58,15 @@ exports.createEnvio = async (idDif) => {
     return data;
 };
 
+exports.saveReporte = async (reporte) => {
+    const { data, error } = await supabase
+        .from('reporte')
+        .insert([reporte]); 
+
+    if (error) throw new Error(error.message); 
+    return data; 
+};
+
 exports.updateEstadoEnvio = async (id_env, estado) => {
     const { data, error } = await supabase
         .from('envio')

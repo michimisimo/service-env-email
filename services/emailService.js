@@ -3,7 +3,6 @@ const axios = require('axios');
 const emailRepository = require('../repositories/emailRepository');
 const { sendToQueue } = require('./rabbitMQConsumer'); //Accede a rabbitMQ
 const SCHEDULE_INTERVAL = 60000; // 1 minuto
-const moment = require('moment');
 const momentTimezone = require("moment-timezone");
 
 //Devuelve arreglo de tipo difusion[] de una campaña (id_difusion, rut destinatario, id_campaña)
@@ -63,101 +62,137 @@ exports.deleteEnvio = async (idDifusion) => {
     return data;
 };
 
-// Función para iniciar el scheduler
+
+exports.saveReporte = async (reporte) => {
+    try {
+        const resultado = await emailRepository.saveReporte(reporte);
+        console.log("Reporte guardado"); 
+        return resultado; 
+    } catch (error) {
+        console.error("Error al crear el reporte:", error); 
+        throw error; 
+    }
+};
+
 exports.startScheduler = () => {
     setInterval(async () => {
         try {
-            //  Obtener todas las campañas
-            const campanas = await axios.get('http://service-gest-cam:3001/getCampanas/');            
-
-            // Obtener la fecha y hora actuales
-            const now = new Date();
+            // Obtener todas las campañas
+            const campanas = await axios.get('http://service-gest-cam:3001/getCampanas/');
 
             for (const campana of campanas.data) {
-                //Filtrar las campañas pendientes de envío (estado 'sin empezar')
-                if (campana.id_estado === 3){
-                    console.log("Se encontró una campaña pendiente")
-                    const { id_campana, fecha_programada, hora_programada } = campana;
+                if (campana.id_estado === 3) {
+                    console.log("Se encontró una campaña pendiente");
+                    const { id_campana, fecha_programada, hora_programada, nombre } = campana;
 
-                    // Extraer solo la parte de horas y minutos
                     const [horas, minutos] = hora_programada.split(':');
-                            
-                    // Combinar fecha_programada y hora_programada para crear un objeto de Date
-                    const fechaYHoraProgramada = momentTimezone.tz(`${fecha_programada} ${horas}:${minutos}`, "America/Santiago");            
-                    const nowInChile = momentTimezone.tz("America/Santiago");                   
+                    const fechaYHoraProgramada = momentTimezone.tz(`${fecha_programada} ${horas}:${minutos}`, "America/Santiago");
+                    const nowInChile = momentTimezone.tz("America/Santiago");
 
-                    if (nowInChile.isSame(fechaYHoraProgramada, 'minute'))
-                        {
+                    if (nowInChile.isSame(fechaYHoraProgramada, 'minute')) {
                         console.log(`Iniciando envío para campaña ID: ${id_campana}`);
 
-                        //Cambiar estado de campaña a 'en proceso'
-                        console.log("Se modifica el estado de la campaña")
+                        // Crear el objeto de reporte
+                        const reporte = {
+                            id_campana: id_campana,
+                            nombre_campana: nombre, 
+                            fecha_programada: fecha_programada,
+                            hora_programada: hora_programada,
+                            fecha_envio: null,
+                            destinatarios_totales: 0,
+                            correos_enviados: 0,
+                            correos_fallidos: 0,
+                            contenido: null, // Asignar más tarde
+                            asunto: null, // Asignar más tarde
+                            remitente: null, // Asignar más tarde
+                            lista_destinatarios: [],
+                            errores: []
+                        };
+
+                        // Cambiar estado de campaña a 'en proceso'
+                        console.log("Cambiando estado de campaña a en proceso")
                         await axios.patch('http://service-gest-cam:3001/updateEstadoCampana/' + id_campana, {
                             id_estado: 2
                         });
-                        console.log("Campaña en proceso")
 
-                        //Obtener lista difusion
-                        const listDif = await getDifusionCampana(id_campana);
-
-                        //Obtener lista envios
-                        const listEnv = await this.getEnvioDifusion(id_campana);
-
-                        //Obtener lista correos de destinatarios
-                        const destinatariosCampana = await getDestinatariosCampana(id_campana);  //Devuelve un arreglo de tipo destinatario[] de la campaña                   
-                                                
-                        //Obtener remitente, asunto y contenido de correo
-                        const emailData = await axios.get(`http://service-gest-cam:3001/getEmailCampana/${id_campana}`);                         
+                        // Obtener remitente, asunto y contenido de correo
+                        const emailData = await axios.get(`http://service-gest-cam:3001/getEmailCampana/${id_campana}`);
                         const correoRemitente = emailData.data[0].correo_remitente;
                         const asunto = emailData.data[0].asunto;
                         const contenido = emailData.data[0].contenido;
 
-                        let campanaEnviada = false;
+                        // Actualizar el reporte con los datos del correo
+                        reporte.contenido = contenido;
+                        reporte.asunto = asunto;
+                        reporte.remitente = correoRemitente;
 
-                        for (const destinatario of destinatariosCampana){
+                        //Obtener lista difusion
+                        const listDif = await getDifusionCampana(id_campana);
+
+                        // Obtener lista destinatarios
+                        const destinatariosCampana = await getDestinatariosCampana(id_campana);
+
+                        //Obtener lista envios
+                        const listEnv = await this.getEnvioDifusion(id_campana);
+
+                        reporte.destinatarios_totales = destinatariosCampana.length; // Total de destinatarios
+
+                        for (const destinatario of destinatariosCampana) {
 
                             //Obtener difusion
                             const difusion = listDif.find(difusion => difusion.rut === destinatario.rut);
 
                             //Obtener envio
                             const envio = listEnv.find(envio => envio[0].id_difusion === difusion.id_difusion); 
-                            const idEnvio = envio[0].id_envio;                             
+                            const idEnvio = envio[0].id_envio;     
 
-                            //Obtener email destinatario
                             const emailDest = destinatario.email;
 
-                            // Llama a enviarCorreos para encolar el envío de correos
-                            console.log("Enviando correo")
-                            await this.enviarCorreo({
-                                from: correoRemitente, 
-                                to: emailDest,
-                                subject: asunto,
-                                html: contenido,
-                                idEnv: idEnvio
-                            });
-                            //Obtener lista envios actualizada
-                            const listEnvActual = await this.getEnvioDifusion(id_campana);
-                            const envioActual = listEnvActual.find(envio => envio[0].id_difusion === difusion.id_difusion); 
+                            try {
+                                console.log("Enviando correo");
+                                await this.enviarCorreo({
+                                    from: correoRemitente,
+                                    to: emailDest,
+                                    subject: asunto,
+                                    html: contenido,
+                                    idEnv: idEnvio
+                                });
 
-                            if(envioActual[0].id_estado != 1){
-                                campanaEnviada = true;
+                                reporte.correos_enviados++; // Incrementar contador de correos enviados
+                                reporte.lista_destinatarios.push(emailDest); // Agregar destinatario a la lista
+                            } catch (error) {
+                                console.error(`Error al enviar correo a ${emailDest}:`, error);
+                                reporte.correos_fallidos++; // Incrementar contador de correos fallidos
+                                reporte.errores.push(`Error al enviar correo a ${emailDest}: ${error.message}`); // Registrar error
                             }
                         }
-                        if(campanaEnviada) {
-                            //Cambiar estado de campaña a 'terminada'
-                            console.log("Se modifica el estado de la campaña")
+
+                        // Cambiar estado de campaña a 'terminada' si se envió al menos un correo
+                        if (reporte.correos_enviados > 0) {
+                            // Actualizar la fecha de envío
+                            reporte.fecha_envio = new Date(); // Asigna la fecha actual
+
+                            console.log("Cambiando estado de campaña a terminada")
                             await axios.patch('http://service-gest-cam:3001/updateEstadoCampana/' + id_campana, {
                                 id_estado: 1
                             });
-                            console.log("Campaña terminada")
+                            console.log("Campaña terminada");
+
+                            console.log("Almacenando reporte final");
+                            // Almacenar el reporte en base de datos
+                            await this.saveReporte({
+                                ...reporte,
+                                lista_destinatarios: JSON.stringify(reporte.lista_destinatarios),
+                                errores: JSON.stringify(reporte.errores)
+                            });
+
                         }
-                        
-                    } else{
-                        console.log("Esta campaña no está programada para este minuto")
+                    } else {
+                        console.log("Esta campaña no está programada para este minuto");
                     }
-                } else{
-                    console.log("No hay campaña para este minuto")
-                }          
+                } else {
+                    console.log("No hay campaña para este minuto");
+                }
             }
         } catch (error) {
             console.error('Error en el scheduler de envíos:', error);
