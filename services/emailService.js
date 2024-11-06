@@ -2,8 +2,8 @@ require('dotenv').config();
 const axios = require('axios');
 const emailRepository = require('../repositories/emailRepository');
 const { sendToQueue } = require('./rabbitMQConsumer'); //Accede a rabbitMQ
-const SCHEDULE_INTERVAL = 60000; // 1 minuto
-const momentTimezone = require("moment-timezone");
+/* const SCHEDULE_INTERVAL = 60000; // 1 minuto */
+/* const momentTimezone = require("moment-timezone"); */
 
 //Devuelve arreglo de tipo difusion[] de una campaña (id_difusion, rut destinatario, id_campaña)
 async function getDifusionCampana(id_campana) {
@@ -45,11 +45,14 @@ exports.getEnvioDifusion = async (idCampana) => {
     return resultados;
 };
 
-// Encolar correos en RabbitMQ
-exports.enviarCorreo = async ({ from, to, subject, html, idEnv}) => {
-    await sendToQueue('emailQueue', { from, to, subject, html, idEnv});
-    console.log(`Correo encolado para ${to}`); 
-};
+async function enviarCorreo({ from, to, subject, html, idEnv }) {
+    try {
+        await sendToQueue('emailQueue', { from, to, subject, html, idEnv });
+        console.log(`Correo encolado para ${to}`);
+    } catch (error) {
+        console.error('Error al encolar el correo:', error);
+    }
+}
 
 //crea un envio para la difusion
 exports.createEnvio = async (idDif) => {
@@ -63,14 +66,14 @@ exports.deleteEnvio = async (idDifusion) => {
 };
 
 
-exports.saveReporte = async (reporte) => {
+/* exports.saveReporte = async (reporte) => {
     try {
         const resultado = await emailRepository.saveReporte(reporte);
-        console.log("Reporte guardado"); 
-        return resultado; 
+        console.log("Reporte guardado");
+        return resultado;
     } catch (error) {
-        console.error("Error al crear el reporte:", error); 
-        throw error; 
+        console.error("Error al crear el reporte:", error);
+        throw error;
     }
 };
 
@@ -82,9 +85,9 @@ exports.getReporteEnvio = async (idCampana) => {
         console.error("Error al obtener el reporte de envío:", error);
         throw new Error(error.message);
     }
-};
+}; */
 
-exports.startScheduler = () => {
+/* exports.startScheduler = () => {
     setInterval(async () => {
         try {
             // Obtener todas las campañas
@@ -93,7 +96,7 @@ exports.startScheduler = () => {
             for (const campana of campanas.data) {
                 if (campana.id_estado === 3) {
                     console.log("Se encontró una campaña pendiente");
-                    const { id_campana, fecha_programada, hora_programada, nombre } = campana;
+                    const { id_campana, fecha_programada, hora_programada } = campana;
 
                     const [horas, minutos] = hora_programada.split(':');
                     const fechaYHoraProgramada = momentTimezone.tz(`${fecha_programada} ${horas}:${minutos}`, "America/Santiago");
@@ -101,103 +104,9 @@ exports.startScheduler = () => {
 
                     if (nowInChile.isSame(fechaYHoraProgramada, 'minute')) {
                         console.log(`Iniciando envío para campaña ID: ${id_campana}`);
-
-                        // Crear el objeto de reporte
-                        const reporte = {
-                            id_campana: id_campana,
-                            nombre_campana: nombre, 
-                            fecha_programada: fecha_programada,
-                            hora_programada: hora_programada,
-                            fecha_envio: null,
-                            destinatarios_totales: 0,
-                            correos_enviados: 0,
-                            correos_fallidos: 0,
-                            contenido: null, // Asignar más tarde
-                            asunto: null, // Asignar más tarde
-                            remitente: null, // Asignar más tarde
-                            lista_destinatarios: [],
-                            errores: []
-                        };
-
-                        // Cambiar estado de campaña a 'en proceso'
-                        console.log("Cambiando estado de campaña a en proceso")
-                        await axios.patch('http://service-gest-cam:3001/updateEstadoCampana/' + id_campana, {
-                            id_estado: 2
-                        });
-
-                        // Obtener remitente, asunto y contenido de correo
-                        const emailData = await axios.get(`http://service-gest-cam:3001/getEmailCampana/${id_campana}`);
-                        const correoRemitente = emailData.data[0].correo_remitente;
-                        const asunto = emailData.data[0].asunto;
-                        const contenido = emailData.data[0].contenido;
-
-                        // Actualizar el reporte con los datos del correo
-                        reporte.contenido = contenido;
-                        reporte.asunto = asunto;
-                        reporte.remitente = correoRemitente;
-
-                        //Obtener lista difusion
-                        const listDif = await getDifusionCampana(id_campana);
-
-                        // Obtener lista destinatarios
-                        const destinatariosCampana = await getDestinatariosCampana(id_campana);
-
-                        //Obtener lista envios
-                        const listEnv = await this.getEnvioDifusion(id_campana);
-
-                        reporte.destinatarios_totales = destinatariosCampana.length; // Total de destinatarios
-
-                        for (const destinatario of destinatariosCampana) {
-
-                            //Obtener difusion
-                            const difusion = listDif.find(difusion => difusion.rut === destinatario.rut);
-
-                            //Obtener envio
-                            const envio = listEnv.find(envio => envio[0].id_difusion === difusion.id_difusion); 
-                            const idEnvio = envio[0].id_envio;     
-
-                            const emailDest = destinatario.email;
-
-                            try {
-                                console.log("Enviando correo");
-                                await this.enviarCorreo({
-                                    from: correoRemitente,
-                                    to: emailDest,
-                                    subject: asunto,
-                                    html: contenido,
-                                    idEnv: idEnvio
-                                });
-
-                                reporte.correos_enviados++; // Incrementar contador de correos enviados
-                                reporte.lista_destinatarios.push(emailDest); // Agregar destinatario a la lista
-                            } catch (error) {
-                                console.error(`Error al enviar correo a ${emailDest}:`, error);
-                                reporte.correos_fallidos++; // Incrementar contador de correos fallidos
-                                reporte.errores.push(`Error al enviar correo a ${emailDest}: ${error.message}`); // Registrar error
-                            }
-                        }
-
-                        // Cambiar estado de campaña a 'terminada' si se envió al menos un correo
-                        if (reporte.correos_enviados > 0) {
-                            // Actualizar la fecha de envío
-                            reporte.fecha_envio = new Date(); // Asigna la fecha actual
-
-                            console.log("Cambiando estado de campaña a terminada")
-                            await axios.patch('http://service-gest-cam:3001/updateEstadoCampana/' + id_campana, {
-                                id_estado: 1
-                            });
-                            console.log("Campaña terminada");
-
-                            console.log("Almacenando reporte final");
-                            // Almacenar el reporte en base de datos
-                            await this.saveReporte({
-                                ...reporte,
-                                lista_destinatarios: JSON.stringify(reporte.lista_destinatarios),
-                                errores: JSON.stringify(reporte.errores)
-                            });
-
-                        }
-                    } else {
+                        await axios.get('http://service-env-email:3002/iniciarEnvioCampana', campana);
+                    }
+                    else {
                         console.log("Esta campaña no está programada para este minuto");
                     }
                 } else {
@@ -208,4 +117,114 @@ exports.startScheduler = () => {
             console.error('Error en el scheduler de envíos:', error);
         }
     }, SCHEDULE_INTERVAL);
+}; */
+
+
+// Función para iniciar el envío de una campaña
+exports.iniciarEnvioCampana = async (campana) => {
+
+    let correoRemitente = ''
+    let asunto = ''
+    let contenido = ''
+
+    // Crear el objeto de reporte
+    const reporte = {
+        id_campana: campana.id_campana,
+        nombre_campana: campana.nombre,
+        fecha_programada: campana.fecha_programada,
+        hora_programada: campana.hora_programada,
+        fecha_envio: null,
+        destinatarios_totales: 0,
+        correos_enviados: 0,
+        correos_fallidos: 0,
+        contenido: null,
+        asunto: null,
+        remitente: null,
+        lista_destinatarios: [],
+        errores: []
+    };
+
+    try {
+        // Cambiar estado de campaña a 'en proceso'
+        console.log("Cambiando estado de campaña a en proceso");
+        await axios.patch(`http://service-gest-cam:3001/updateEstadoCampana/${campana.id_campana}`, { id_estado: 2 });
+
+        // Obtener remitente, asunto y contenido de correo
+        const emailData = await axios.get(`http://service-gest-cam:3001/getEmailCampana/${campana.id_campana}`);
+
+        if (emailData && emailData.data && emailData.data.length > 0) {
+            correoRemitente = emailData.data[0].correo_remitente;
+            asunto = emailData.data[0].asunto;
+            contenido = emailData.data[0].contenido;
+
+            // Actualizar el reporte con los datos del correo
+            reporte.contenido = contenido;
+            reporte.asunto = asunto;
+            reporte.remitente = correoRemitente;
+        } else {
+            throw new Error("No se encontraron datos del correo para la campaña.");
+        }
+
+        // Obtener lista de difusión y destinatarios
+        const listDif = await getDifusionCampana(campana.id_campana);
+        const destinatariosCampana = await getDestinatariosCampana(campana.id_campana);
+        const listEnv = await this.getEnvioDifusion(campana.id_campana);
+
+        reporte.destinatarios_totales = destinatariosCampana.length;
+
+        // Enviar correos a cada destinatario
+        for (const destinatario of destinatariosCampana) {
+            const difusion = listDif.find(d => d.rut === destinatario.rut);
+            const envio = listEnv.find(e => e[0].id_difusion === difusion.id_difusion);
+            const idEnvio = envio[0].id_envio;
+            const emailDest = destinatario.email;
+
+            try {
+                console.log(`Enviando correo a ${emailDest}`);
+                await enviarCorreo({
+                    from: correoRemitente,
+                    to: emailDest,
+                    subject: asunto,
+                    html: contenido,
+                    idEnv: idEnvio
+                });
+
+                reporte.correos_enviados++;
+                reporte.lista_destinatarios.push(emailDest);
+            } catch (error) {
+                console.error(`Error al enviar correo a ${emailDest}:`, error);
+                reporte.correos_fallidos++;
+                reporte.errores.push(`Error al enviar correo a ${emailDest}: ${error.message}, Stack: ${error.stack || 'No stack trace available'}`);
+            }
+        }
+
+        // Cambiar estado de campaña según resultados
+        if (reporte.correos_enviados > 0) {
+            reporte.fecha_envio = new Date();
+            console.log("Cambiando estado de campaña a terminada");
+            await axios.patch('http://service-gest-cam:3001/updateEstadoCampana/' + campana.id_campana, { id_estado: 1 });
+        } else {
+            console.log("No se enviaron correos, cambiando estado a fallida.");
+            await axios.patch('http://service-gest-cam:3001/updateEstadoCampana/' + campana.id_campana, { id_estado: 4 });
+        }
+        try {
+            console.log("Almacenando reporte final...");
+            const response = await axios.post('http://service-reportes:3004/saveReporte', {
+                ...reporte,
+                lista_destinatarios: JSON.stringify(reporte.lista_destinatarios),
+                errores: JSON.stringify(reporte.errores)
+            });
+
+            console.log("Reporte guardado con éxito:", response.data);
+        } catch (error) {
+            console.error("Error al guardar el reporte:", error);
+            if (error.response) {
+                console.error("Respuesta del servidor:", error.response.data);
+            }
+        }
+
+    } catch (error) {
+        console.error("Error durante el proceso de envío:", error);
+        await axios.post('http://service-gest-cam:3001/updateEstadoCampana/' + campana.id_campana, { id_estado: 4 });
+    }
 };
